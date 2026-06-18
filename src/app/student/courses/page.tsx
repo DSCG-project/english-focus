@@ -1,9 +1,11 @@
+"use client";
+
 import Link from "next/link";
 import { StudentShell } from "@/components/layout/StudentShell";
-import { courses, recommended } from "@/data/english";
+import { useEnglishContent } from "@/lib/useEnglishContent";
 
 export default function CoursesPage() {
-  const allCourses = [...courses, ...recommended];
+  const { courses } = useEnglishContent();
 
   return (
     <StudentShell>
@@ -12,17 +14,20 @@ export default function CoursesPage() {
       </div>
 
       <div className="ef-card-grid">
-        {allCourses.map((course, index) => (
+        {courses.map((course, index) => (
           <article className="ef-course-card" key={course.id}>
             <div className={index % 2 === 0 ? "ef-course-img" : "ef-course-img dark"} />
 
             <h3>{course.title}</h3>
 
-            <span className="ef-tag">
-              {"tag" in course ? course.tag : "General English"}
-            </span>
+            <div className="ef-teacher">
+              <span className="ef-avatar" />
+              <span>{course.teacher}</span>
+            </div>
 
-            <Link href="/student/courses/b2" className="ef-card-btn">
+            <span className="ef-tag">{course.tag}</span>
+
+            <Link href={`/student/courses/${course.id}`} className="ef-card-btn">
               View course
             </Link>
           </article>

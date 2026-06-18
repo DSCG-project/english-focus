@@ -3,9 +3,13 @@ import { AdminShell } from "@/components/layout/AdminShell";
 export default function Page() {
   return (
     <AdminShell>
-      <h1 className="ef-section-title">PDF</h1>
-      <p className="ef-section-text">Upload lesson notes, summaries and vocabulary sheets.</p>
-      <div className="ef-card">PDF management will be added here.</div>
+      <section className="ef-admin-hero">
+        <div>
+          <h1>PDF Notes</h1>
+          <p>Upload summaries, vocabulary sheets, lesson notes and exercise files.</p>
+        </div>
+      </section>
+      <div className="ef-admin-panel">PDF management system will be connected later.</div>
     </AdminShell>
   );
 }

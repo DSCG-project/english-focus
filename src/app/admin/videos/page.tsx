@@ -3,9 +3,13 @@ import { AdminShell } from "@/components/layout/AdminShell";
 export default function Page() {
   return (
     <AdminShell>
-      <h1 className="ef-section-title">Videos</h1>
-      <p className="ef-section-text">Upload and organize short video lessons.</p>
-      <div className="ef-card">Video upload and protection will be added here.</div>
+      <section className="ef-admin-hero">
+        <div>
+          <h1>Videos</h1>
+          <p>Upload, organize and protect video lessons for each English Focus course.</p>
+        </div>
+      </section>
+      <div className="ef-admin-panel">Video upload system will be connected later.</div>
     </AdminShell>
   );
 }
