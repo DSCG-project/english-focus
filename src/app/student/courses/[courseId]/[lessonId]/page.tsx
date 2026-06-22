@@ -2,34 +2,144 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { useEffect, useState } from "react";
 import { StudentShell } from "@/components/layout/StudentShell";
 import { useEnglishContent } from "@/lib/useEnglishContent";
 
-function isUsablePath(value: string) {
-  return value.trim().startsWith("/") || value.trim().startsWith("http");
+function isUsablePath(value: string | undefined) {
+  const clean = (value || "").trim();
+  return clean.startsWith("/") || clean.startsWith("http");
+}
+
+function resultKey(courseId: string, lessonId: string) {
+  return `${courseId}__${lessonId}`;
+}
+
+type TestResult = {
+  score: number;
+  total: number;
+  finishedAt: string;
+};
+
+function ResourceIcon({ type }: { type: "view" | "download" }) {
+  const common = {
+    width: 17,
+    height: 17,
+    viewBox: "0 0 24 24",
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 2,
+    strokeLinecap: "round" as const,
+    strokeLinejoin: "round" as const,
+  };
+
+  if (type === "download") {
+    return (
+      <svg {...common}>
+        <path d="M12 3v12" />
+        <path d="m7 10 5 5 5-5" />
+        <path d="M5 21h14" />
+      </svg>
+    );
+  }
+
+  return (
+    <svg {...common}>
+      <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  );
+}
+
+function DocumentIcon() {
+  return (
+    <svg
+      width="19"
+      height="19"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" />
+      <path d="M14 2v6h6" />
+      <path d="M8 13h8" />
+      <path d="M8 17h5" />
+    </svg>
+  );
+}
+
+function PdfResourceCard({
+  title,
+  href,
+  viewerHref,
+}: {
+  title: string;
+  href?: string;
+  viewerHref: string;
+}) {
+  const available = isUsablePath(href);
+
+  return (
+    <article className={available ? "ef-student-doc-card ready" : "ef-student-doc-card"}>
+      <div className="ef-student-doc-main">
+        <span className="ef-student-doc-icon">
+          <DocumentIcon />
+        </span>
+        <h3>{title}</h3>
+      </div>
+
+      {available && (
+        <div className="ef-student-doc-actions">
+          <Link href={viewerHref} title={`View ${title}`}>
+            <ResourceIcon type="view" />
+          </Link>
+
+          <a href={href} download title={`Download ${title}`}>
+            <ResourceIcon type="download" />
+          </a>
+        </div>
+      )}
+    </article>
+  );
 }
 
 export default function LessonPlayerPage() {
   const params = useParams<{ courseId: string; lessonId: string }>();
   const { courses, lessons } = useEnglishContent();
+  const [videoError, setVideoError] = useState(false);
+  const [testResult, setTestResult] = useState<TestResult | null>(null);
 
   const course = courses.find((item) => item.id === params.courseId);
   const lesson = lessons.find(
     (item) => item.courseId === params.courseId && item.id === params.lessonId
   );
 
-  const courseLessons = lessons.filter((item) => item.courseId === params.courseId);
-  const quiz = lesson?.quiz || [];
-  const hasVideo = Boolean(lesson?.video && isUsablePath(lesson.video));
-  const hasPdf = Boolean(lesson?.pdf && isUsablePath(lesson.pdf));
+  useEffect(() => {
+    if (!lesson || typeof window === "undefined") return;
+
+    try {
+      const raw = window.localStorage.getItem("english-focus-test-results");
+      const results = raw ? JSON.parse(raw) : {};
+      setTestResult(results[resultKey(lesson.courseId, lesson.id)] || null);
+    } catch {
+      setTestResult(null);
+    }
+  }, [lesson]);
 
   if (!course || !lesson) {
     return (
       <StudentShell>
         <section className="ef-event-card">
           <h1>Lesson not found</h1>
-          <p>This lesson may have been deleted from the admin content builder.</p>
-          <Link href="/student/courses" className="ef-card-btn" style={{ width: "fit-content", padding: "0 18px" }}>
+          <p>This lesson may have been deleted from the content studio.</p>
+          <Link
+            href="/student/courses"
+            className="ef-card-btn"
+            style={{ width: "fit-content", padding: "0 18px" }}
+          >
             Back to courses
           </Link>
         </section>
@@ -37,12 +147,22 @@ export default function LessonPlayerPage() {
     );
   }
 
+  const courseLessons = lessons.filter((item) => item.courseId === course.id);
+  const hasVideo = Boolean(lesson.video && isUsablePath(lesson.video) && !videoError);
+
   return (
     <StudentShell>
       <div className="ef-lesson-layout">
         <main className="ef-lesson-player-card">
           {hasVideo ? (
-            <video className="ef-real-video" controls preload="metadata">
+            <video
+              className="ef-real-video"
+              controls
+              controlsList="nodownload"
+              preload="metadata"
+              onContextMenu={(event) => event.preventDefault()}
+              onError={() => setVideoError(true)}
+            >
               <source src={lesson.video} />
               Your browser does not support the video tag.
             </video>
@@ -51,12 +171,7 @@ export default function LessonPlayerPage() {
               <div className="ef-video-empty-inner">
                 <div className="ef-video-play">▶</div>
                 <h1>{lesson.title}</h1>
-                <p>No exploitable video path has been added for this lesson yet.</p>
-                <div className="ef-file-warning">
-                  Add a file in <b>public/uploads/videos</b>, then set the path in admin:
-                  <br />
-                  /uploads/videos/your-video.mp4
-                </div>
+                <p>This lesson video is not available yet.</p>
               </div>
             </section>
           )}
@@ -68,127 +183,63 @@ export default function LessonPlayerPage() {
 
             <h2 className="ef-lesson-main-title">{lesson.title}</h2>
 
-            <p className="ef-lesson-desc">
-              {lesson.description}
-            </p>
-
-            <div className="ef-lesson-actions">
-              <button className="ef-primary-action">Mark lesson as completed</button>
-
-              {hasPdf ? (
-                <a className="ef-secondary-action" href={lesson.pdf} target="_blank" rel="noreferrer">
-                  Open PDF notes
-                </a>
-              ) : (
-                <button className="ef-secondary-action" disabled>
-                  PDF not available
-                </button>
-              )}
-
-              <a className="ef-secondary-action" href="#quiz">
-                Start quiz
-              </a>
-            </div>
-
-            <div className="ef-learning-grid">
-              <article className="ef-learning-card">
-                <strong>Lesson objective</strong>
-                <span>{lesson.objective}</span>
-              </article>
-
-              <article className="ef-learning-card">
-                <strong>PDF notes</strong>
-                <span>{hasPdf ? lesson.pdf : "PDF notes are not available yet."}</span>
-              </article>
-
-              <article className="ef-learning-card">
-                <strong>Quiz</strong>
-                <span>{quiz.length} questions with explanations.</span>
-              </article>
-            </div>
-          </section>
-
-          <section id="quiz" className="ef-quiz-section">
-            <h2>Lesson quiz</h2>
-
-            {quiz.length === 0 && (
-              <div className="ef-event-card">
-                No quiz has been added for this lesson yet.
+            <section className="ef-student-pdf-panel clean">
+              <div className="ef-student-pdf-head clean">
+                <h3>Lesson documents</h3>
               </div>
-            )}
 
-            {quiz.map((question, questionIndex) => (
-              <article className="ef-student-question" key={question.id}>
-                <h3>{questionIndex + 1}. {question.question}</h3>
+              <div className="ef-student-pdf-grid clean">
+                <PdfResourceCard
+                  title="Course"
+                  href={lesson.coursePdf}
+                  viewerHref={`/student/courses/${course.id}/${lesson.id}/documents/course`}
+                />
 
-                <div className="ef-student-answers">
-                  {question.choices.map((choice, index) => (
-                    <button
-                      key={choice}
-                      className={
-                        index === question.correctIndex
-                          ? "ef-student-answer correct"
-                          : "ef-student-answer"
-                      }
-                    >
-                      {String.fromCharCode(65 + index)}. {choice}
-                    </button>
-                  ))}
-                </div>
+                <PdfResourceCard
+                  title="Exercises"
+                  href={lesson.exercisesPdf}
+                  viewerHref={`/student/courses/${course.id}/${lesson.id}/documents/exercises`}
+                />
 
-                <div className="ef-student-explanation">
-                  <b>Explanation:</b> {question.explanation}
-                </div>
-              </article>
-            ))}
+                <PdfResourceCard
+                  title="Notes"
+                  href={lesson.notesPdf}
+                  viewerHref={`/student/courses/${course.id}/${lesson.id}/documents/notes`}
+                />
+              </div>
+            </section>
           </section>
         </main>
 
         <aside className="ef-lesson-sidebar">
           <section className="ef-side-panel">
-            <h3>Lesson resources</h3>
+            <h3>Test status</h3>
 
-            <div className="ef-resource-list">
-              <div className="ef-resource-item">
-                <strong>Video file</strong>
-                <span>{lesson.video || "No video path"}</span>
+            {testResult ? (
+              <div className="ef-quiz-preview">
+                <p>
+                  Last score: <b>{testResult.score}/{testResult.total}</b>
+                </p>
+
+                <Link
+                  className="ef-admin-submit full"
+                  href={`/student/courses/${course.id}/${lesson.id}/test`}
+                >
+                  Retake test
+                </Link>
               </div>
+            ) : (
+              <div className="ef-quiz-preview">
+                <p>You can start the test and return to this course at any time.</p>
 
-              <div className="ef-resource-item">
-                <strong>PDF Notes</strong>
-                <span>{lesson.pdf || "No PDF path"}</span>
+                <Link
+                  className="ef-admin-submit full"
+                  href={`/student/courses/${course.id}/${lesson.id}/test`}
+                >
+                  Start test
+                </Link>
               </div>
-
-              <div className="ef-resource-item">
-                <strong>Practice</strong>
-                <span>{quiz.length} quiz questions</span>
-              </div>
-            </div>
-          </section>
-
-          <section className="ef-side-panel">
-            <h3>Quick quiz</h3>
-
-            <div className="ef-quiz-preview">
-              {quiz[0] ? (
-                <>
-                  <p>{quiz[0].question}</p>
-
-                  <div className="ef-answer-list">
-                    {quiz[0].choices.map((choice, index) => (
-                      <div
-                        className={index === quiz[0].correctIndex ? "ef-answer correct" : "ef-answer"}
-                        key={choice}
-                      >
-                        {choice}
-                      </div>
-                    ))}
-                  </div>
-                </>
-              ) : (
-                <p>No quiz question has been added for this lesson yet.</p>
-              )}
-            </div>
+            )}
           </section>
 
           <section className="ef-side-panel">
@@ -202,9 +253,7 @@ export default function LessonPlayerPage() {
                   key={`${item.courseId}-${item.id}`}
                 >
                   <span className="ef-mini-number">{index + 1}</span>
-                  <span className="ef-mini-title">
-                    {item.title}
-                  </span>
+                  <span className="ef-mini-title">{item.title}</span>
                 </Link>
               ))}
             </div>

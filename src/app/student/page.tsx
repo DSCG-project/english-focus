@@ -1,143 +1,186 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
 import { StudentShell } from "@/components/layout/StudentShell";
 import { useEnglishContent } from "@/lib/useEnglishContent";
 
-export default function StudentDashboard() {
-  const { courses, publishedLessons } = useEnglishContent();
+type TestResult = {
+  score: number;
+  total: number;
+  finishedAt: string;
+};
 
-  const activeCourses = courses.filter((course) => course.status === "Active").slice(0, 2);
-  const recommended = courses.filter((course) => course.status !== "Active").slice(0, 2);
+function resultKey(courseId: string, lessonId: string) {
+  return `${courseId}__${lessonId}`;
+}
+
+function formatDate(value: string) {
+  try {
+    return new Intl.DateTimeFormat("en", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    }).format(new Date(value));
+  } catch {
+    return "";
+  }
+}
+
+export default function StudentDashboardPage() {
+  const { courses, lessons } = useEnglishContent();
+  const [results, setResults] = useState<Record<string, TestResult>>({});
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem("english-focus-test-results");
+      setResults(raw ? JSON.parse(raw) : {});
+    } catch {
+      setResults({});
+    }
+  }, []);
+
+  const activeCourses = courses.filter((course) => course.status === "Active");
   const currentCourse = activeCourses[0] || courses[0];
+  const currentLessons = currentCourse
+    ? lessons.filter((lesson) => lesson.courseId === currentCourse.id)
+    : [];
+  const currentLesson = currentLessons[0];
+
+  const completedTests = lessons.filter((lesson) => results[resultKey(lesson.courseId, lesson.id)]).length;
+  const readyResources = lessons.filter((lesson) => lesson.video || lesson.coursePdf || lesson.exercisesPdf || lesson.notesPdf).length;
+
+  const recentResults = useMemo(() => {
+    return Object.entries(results)
+      .map(([key, result]) => {
+        const [courseId, lessonId] = key.split("__");
+        const lesson = lessons.find((item) => item.courseId === courseId && item.id === lessonId);
+        const course = courses.find((item) => item.id === courseId);
+
+        return {
+          key,
+          result,
+          lesson,
+          course,
+        };
+      })
+      .filter((item) => item.lesson && item.course)
+      .sort((a, b) => new Date(b.result.finishedAt).getTime() - new Date(a.result.finishedAt).getTime())
+      .slice(0, 3);
+  }, [results, courses, lessons]);
 
   return (
     <StudentShell>
-      <section className="ef-hero-course">
-        <h1 className="ef-user-name">Welcome Cheikh</h1>
-        <div className="ef-underline" />
+      <section className="ef-final-dashboard-hero">
+        <div>
+          <span className="ef-course-eyebrow">Welcome back</span>
+          <h1>Continue your English learning</h1>
+          <p>
+            Watch lessons, open PDF resources and complete QCM tests from your active courses.
+          </p>
 
-        <div className="ef-current-label">Current Course</div>
-        <div className="ef-current-title">{currentCourse?.title || "English Focus Course"}</div>
+          <div className="ef-course-hero-actions">
+            {currentLesson && (
+              <Link href={`/student/courses/${currentCourse.id}/${currentLesson.id}`} className="ef-primary-action">
+                Continue learning
+              </Link>
+            )}
 
-        <div className="ef-course-progress">
-          <span style={{ width: `${currentCourse ? (currentCourse.progress / Math.max(currentCourse.total, 1)) * 100 : 0}%` }} />
+            <Link href="/student/courses" className="ef-secondary-action">
+              Browse courses
+            </Link>
+          </div>
         </div>
 
-        <small style={{ marginTop: 8 }}>
-          {currentCourse?.progress || 0}/{currentCourse?.total || 0}
-        </small>
-
-        <Link href={`/student/courses/${currentCourse?.id || "b2-upper-intermediate"}`} className="ef-continue">
-          Continue with course
-        </Link>
+        <aside className="ef-dashboard-focus-card">
+          <span>Current course</span>
+          <strong>{currentCourse?.title || "No course yet"}</strong>
+          <p>{currentLessons.length} lessons available</p>
+        </aside>
       </section>
 
-      <div className="ef-two-cols">
-        <section>
-          <div className="ef-section-head">
-            <h2 className="ef-section-title">Your Courses</h2>
-            <div className="ef-arrows">
-              <button className="ef-arrow">‹</button>
-              <button className="ef-arrow">›</button>
-            </div>
-          </div>
-
-          <div className="ef-card-grid">
-            {activeCourses.map((course) => (
-              <article className="ef-course-card" key={course.id}>
-                <div className="ef-course-img" />
-                <h3>{course.title}</h3>
-
-                <div className="ef-card-progress">
-                  <span style={{ width: `${(course.progress / Math.max(course.total, 1)) * 100}%` }} />
-                </div>
-
-                <div className="ef-card-meta">
-                  <span>{course.progress}/{course.total}</span>
-                  <span>{course.tag}</span>
-                </div>
-
-                <Link href={`/student/courses/${course.id}`} className="ef-card-btn">
-                  Continue with course
-                </Link>
-              </article>
-            ))}
-          </div>
-        </section>
-
-        <section>
-          <div className="ef-section-head">
-            <h2 className="ef-section-title">Recommended for You</h2>
-            <div className="ef-arrows">
-              <button className="ef-arrow">‹</button>
-              <button className="ef-arrow">›</button>
-            </div>
-          </div>
-
-          <div className="ef-card-grid">
-            {recommended.map((course, index) => (
-              <article className="ef-course-card" key={course.id}>
-                <div className={index === 0 ? "ef-course-img dark" : "ef-course-img"} />
-
-                <div className="ef-teacher">
-                  <span className="ef-avatar" />
-                  <span>{course.teacher}</span>
-                </div>
-
-                <span className="ef-lock">Locked · {course.status}</span>
-                <br />
-                <span className="ef-preview">Preview ◉</span>
-
-                <h3>{course.title}</h3>
-                <span className="ef-tag">{course.tag}</span>
-              </article>
-            ))}
-          </div>
-        </section>
+      <div className="ef-course-metrics">
+        <div>
+          <span>Courses</span>
+          <strong>{courses.length}</strong>
+        </div>
+        <div>
+          <span>Lessons</span>
+          <strong>{lessons.length}</strong>
+        </div>
+        <div>
+          <span>Resources ready</span>
+          <strong>{readyResources}</strong>
+        </div>
+        <div>
+          <span>Tests completed</span>
+          <strong>{completedTests}</strong>
+        </div>
       </div>
 
-      <div className="ef-two-cols">
-        <section>
+      <div className="ef-dashboard-grid-final">
+        <section className="ef-dashboard-panel-final">
           <div className="ef-section-head">
-            <h2 className="ef-section-title">Latest Lessons</h2>
-            <div className="ef-arrows">
-              <button className="ef-arrow">‹</button>
-              <button className="ef-arrow">›</button>
-            </div>
+            <h2 className="ef-section-title">My courses</h2>
+            <Link href="/student/courses" className="ef-mini-secondary">View all</Link>
           </div>
 
-          <div className="ef-card-grid">
-            {publishedLessons.slice(0, 2).map((lesson, index) => (
-              <article className="ef-course-card" key={`${lesson.courseId}-${lesson.id}`}>
-                <div className={index === 0 ? "ef-course-img" : "ef-course-img dark"} />
-                <h3>{lesson.title}</h3>
-                <span className="ef-tag">{lesson.skill}</span>
-                <Link href={`/student/courses/${lesson.courseId}/${lesson.id}`} className="ef-card-btn">
-                  Open lesson
-                </Link>
-              </article>
-            ))}
+          <div className="ef-dashboard-course-list">
+            {activeCourses.slice(0, 4).map((course) => {
+              const courseLessons = lessons.filter((lesson) => lesson.courseId === course.id);
+              const firstLesson = courseLessons[0];
+
+              return (
+                <article className="ef-dashboard-course-row" key={course.id}>
+                  <div>
+                    <span>{course.level}</span>
+                    <h3>{course.title}</h3>
+                    <p>{courseLessons.length} lessons · {course.teacher}</p>
+                  </div>
+
+                  <div>
+                    <Link href={`/student/courses/${course.id}`} className="ef-mini-primary">
+                      Open course
+                    </Link>
+
+                    {firstLesson && (
+                      <Link href={`/student/courses/${course.id}/${firstLesson.id}`} className="ef-mini-secondary">
+                        Continue
+                      </Link>
+                    )}
+                  </div>
+                </article>
+              );
+            })}
           </div>
         </section>
 
-        <section>
+        <aside className="ef-dashboard-panel-final">
           <div className="ef-section-head">
-            <h2 className="ef-section-title">Upcoming Events</h2>
+            <h2 className="ef-section-title">Recent scores</h2>
           </div>
 
-          <div className="ef-events">
-            <article className="ef-event-card">
-              <div className="ef-event-date">Tuesday 30 June 2026 2:00 (UTC)</div>
-              <h3 className="ef-event-title">Live Speaking Practice</h3>
-            </article>
+          <div className="ef-score-list-final">
+            {recentResults.length > 0 ? recentResults.map((item) => (
+              <Link
+                href={`/student/courses/${item.course!.id}/${item.lesson!.id}/test`}
+                className="ef-score-row-final"
+                key={item.key}
+              >
+                <div>
+                  <strong>{item.lesson!.title}</strong>
+                  <span>{formatDate(item.result.finishedAt)}</span>
+                </div>
 
-            <article className="ef-event-card">
-              <div className="ef-event-date">Thursday 02 July 2026 6:00 (UTC)</div>
-              <h3 className="ef-event-title">Business English Workshop</h3>
-            </article>
+                <b>{item.result.score}/{item.result.total}</b>
+              </Link>
+            )) : (
+              <div className="ef-empty-mini">
+                No test result yet. Complete your first QCM test to see your score here.
+              </div>
+            )}
           </div>
-        </section>
+        </aside>
       </div>
     </StudentShell>
   );

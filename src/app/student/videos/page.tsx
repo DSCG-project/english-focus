@@ -1,15 +1,16 @@
 import { StudentShell } from "@/components/layout/StudentShell";
 
-export default function Page() {
+export default function VideosPage() {
   return (
     <StudentShell>
-      <div className="ef-topbar">
-        <div>
-          <h1 className="ef-section-title">Videos</h1>
-          <p className="ef-section-text">Short lessons organized by level, topic and skill.</p>
-        </div>
+      <div className="ef-section-head">
+        <h1 className="ef-section-title">Videos</h1>
       </div>
-      <div className="ef-card">The secure video player will be added here.</div>
+
+      <section className="ef-event-card">
+        <h3>Video library</h3>
+        <p>Uploaded video lessons will be displayed here.</p>
+      </section>
     </StudentShell>
   );
 }

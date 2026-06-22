@@ -1,15 +1,16 @@
 import { StudentShell } from "@/components/layout/StudentShell";
 
-export default function Page() {
+export default function TestsPage() {
   return (
     <StudentShell>
-      <div className="ef-topbar">
-        <div>
-          <h1 className="ef-section-title">Tests</h1>
-          <p className="ef-section-text">Level tests and final assessments.</p>
-        </div>
+      <div className="ef-section-head">
+        <h1 className="ef-section-title">Tests</h1>
       </div>
-      <div className="ef-card">Placement tests and final tests will be added here.</div>
+
+      <section className="ef-event-card">
+        <h3>Level tests</h3>
+        <p>Placement tests and final assessments will be displayed here.</p>
+      </section>
     </StudentShell>
   );
 }
