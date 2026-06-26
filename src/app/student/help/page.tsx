@@ -1,31 +1,49 @@
+"use client";
+
+import Link from "next/link";
 import { StudentShell } from "@/components/layout/StudentShell";
 
-export default function HelpPage() {
+const helpItems = [
+  {
+    title: "How do I start a lesson?",
+    text: "Open Courses, choose your level or Business English subject, then click Start or Open.",
+  },
+  {
+    title: "Where are PDFs?",
+    text: "PDFs appear in the lesson page and in PDF resources after the admin uploads them.",
+  },
+  {
+    title: "How do tests work?",
+    text: "QCM tests show one question at a time. Score and corrections appear only at the end.",
+  },
+  {
+    title: "Why is a course empty?",
+    text: "The catalogue structure is ready. Videos, PDFs and tests are added gradually from the admin studio.",
+  },
+];
+
+export default function StudentHelpPage() {
   return (
     <StudentShell>
-      <section className="ef-courses-page-head">
+      <section className="ef-clean-page-head simple">
         <div>
           <span className="ef-course-eyebrow">Support</span>
           <h1>Help</h1>
-          <p>Find help for lessons, PDFs, tests and account access.</p>
+          <p>Quick answers for using the English Focus learning platform.</p>
         </div>
+
+        <Link href="/student/courses" className="ef-secondary-action">
+          Browse courses
+        </Link>
       </section>
 
-      <section className="ef-dashboard-panel-final">
-        <div className="ef-help-grid-final">
-          <article>
-            <h3>Lessons</h3>
-            <p>Open a course, choose a lesson and start the video.</p>
+      <section className="ef-help-clean-grid">
+        {helpItems.map((item) => (
+          <article className="ef-help-clean-card" key={item.title}>
+            <h2>{item.title}</h2>
+            <p>{item.text}</p>
           </article>
-          <article>
-            <h3>PDF documents</h3>
-            <p>Use the eye icon to open the internal PDF viewer or the download icon to save the file.</p>
-          </article>
-          <article>
-            <h3>Tests</h3>
-            <p>Answers are submitted at the end. Score and corrections appear only after completion.</p>
-          </article>
-        </div>
+        ))}
       </section>
     </StudentShell>
   );

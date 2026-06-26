@@ -30,70 +30,11 @@ function readKey(key: string) {
   }
 }
 
-function BackupIcon({ type }: { type: "download" | "upload" | "reset" | "open" }) {
-  const common = {
-    width: 18,
-    height: 18,
-    viewBox: "0 0 24 24",
-    fill: "none",
-    stroke: "currentColor",
-    strokeWidth: 2,
-    strokeLinecap: "round" as const,
-    strokeLinejoin: "round" as const,
-  };
-
-  if (type === "upload") {
-    return (
-      <svg {...common}>
-        <path d="M12 16V4" />
-        <path d="m7 9 5-5 5 5" />
-        <path d="M20 16v4H4v-4" />
-      </svg>
-    );
-  }
-
-  if (type === "reset") {
-    return (
-      <svg {...common}>
-        <path d="M3 12a9 9 0 1 0 3-6.7" />
-        <path d="M3 4v6h6" />
-      </svg>
-    );
-  }
-
-  if (type === "open") {
-    return (
-      <svg {...common}>
-        <path d="M7 7h10v10" />
-        <path d="M7 17 17 7" />
-      </svg>
-    );
-  }
-
-  return (
-    <svg {...common}>
-      <path d="M12 3v12" />
-      <path d="m7 10 5 5 5-5" />
-      <path d="M5 21h14" />
-    </svg>
-  );
-}
-
 export default function AdminBackupPage() {
   const [message, setMessage] = useState("");
-  const [importPreview, setImportPreview] = useState<BackupPayload | null>(null);
+  const [preview, setPreview] = useState<BackupPayload | null>(null);
 
   const counts = useMemo(() => {
-    if (typeof window === "undefined") {
-      return {
-        levels: 0,
-        courses: 0,
-        lessons: 0,
-        students: 0,
-        results: 0,
-      };
-    }
-
     const levels = readKey("english-focus-levels") as unknown[] | null;
     const courses = readKey("english-focus-courses") as unknown[] | null;
     const lessons = readKey("english-focus-lessons") as unknown[] | null;
@@ -129,6 +70,7 @@ export default function AdminBackupPage() {
 
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
+
     link.href = url;
     link.download = `english-focus-backup-${new Date().toISOString().slice(0, 10)}.json`;
     link.click();
@@ -137,7 +79,7 @@ export default function AdminBackupPage() {
     setMessage("Backup exported successfully.");
   }
 
-  async function handleImport(event: ChangeEvent<HTMLInputElement>) {
+  async function loadBackup(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
 
     if (!file) return;
@@ -147,13 +89,13 @@ export default function AdminBackupPage() {
       const payload = JSON.parse(text) as BackupPayload;
 
       if (payload.app !== "English Focus" || !payload.data) {
-        throw new Error("Invalid English Focus backup file.");
+        throw new Error("Invalid backup file.");
       }
 
-      setImportPreview(payload);
-      setMessage("Backup file loaded. Click Restore backup to apply it.");
+      setPreview(payload);
+      setMessage("Backup loaded. You can restore it now.");
     } catch (error) {
-      setImportPreview(null);
+      setPreview(null);
       setMessage(error instanceof Error ? error.message : "Import failed.");
     }
 
@@ -161,13 +103,13 @@ export default function AdminBackupPage() {
   }
 
   function restoreBackup() {
-    if (!importPreview) {
+    if (!preview) {
       setMessage("Choose a backup file first.");
       return;
     }
 
     BACKUP_KEYS.forEach((key) => {
-      const value = importPreview.data[key];
+      const value = preview.data[key];
 
       if (value === null || value === undefined) {
         window.localStorage.removeItem(key);
@@ -186,97 +128,67 @@ export default function AdminBackupPage() {
 
   return (
     <AdminShell>
-      <section className="ef-admin-hero">
+      <section className="ef-admin-clean-hero">
         <div>
-          <h1>Backup & reset</h1>
-          <p>Export, restore or reset local MVP content before moving to database and secure storage.</p>
+          <span>Local MVP safety</span>
+          <h1>Backup</h1>
+          <p>Export, restore or reset local data before moving to database and secure storage.</p>
         </div>
 
-        <div className="ef-admin-hero-actions">
-          <Link href="/admin/content" className="ef-admin-white-btn">
-            Content studio
-          </Link>
-        </div>
+        <Link href="/admin" className="ef-admin-clean-preview">
+          Admin dashboard
+        </Link>
       </section>
 
-      <div className="ef-admin-stats">
-        <div className="ef-admin-stat">
-          <span>Levels</span>
-          <strong>{counts.levels}</strong>
-        </div>
-        <div className="ef-admin-stat">
-          <span>Courses</span>
-          <strong>{counts.courses}</strong>
-        </div>
-        <div className="ef-admin-stat">
-          <span>Lessons</span>
-          <strong>{counts.lessons}</strong>
-        </div>
-        <div className="ef-admin-stat">
-          <span>Students</span>
-          <strong>{counts.students}</strong>
-        </div>
-        <div className="ef-admin-stat">
-          <span>Results</span>
-          <strong>{counts.results}</strong>
-        </div>
+      <div className="ef-admin-clean-kpis">
+        <div><span>Levels</span><strong>{counts.levels}</strong></div>
+        <div><span>Courses</span><strong>{counts.courses}</strong></div>
+        <div><span>Lessons</span><strong>{counts.lessons}</strong></div>
+        <div><span>Students</span><strong>{counts.students}</strong></div>
+        <div><span>Results</span><strong>{counts.results}</strong></div>
       </div>
 
-      <section className="ef-backup-grid">
-        <article className="ef-backup-card">
-          <span className="ef-backup-icon">
-            <BackupIcon type="download" />
-          </span>
-          <h2>Export backup</h2>
-          <p>Download levels, courses, lessons, PDFs, tests, students and local scores as one JSON file.</p>
-
-          <button className="ef-backup-primary" onClick={exportBackup}>
-            <BackupIcon type="download" />
+      <section className="ef-admin-backup-grid">
+        <article className="ef-admin-clean-card">
+          <h2>Export</h2>
+          <p>Download all local levels, courses, lessons, tests, results and students as JSON.</p>
+          <button className="ef-admin-action-main" onClick={exportBackup}>
             Export JSON
           </button>
         </article>
 
-        <article className="ef-backup-card">
-          <span className="ef-backup-icon">
-            <BackupIcon type="upload" />
-          </span>
-          <h2>Import backup</h2>
-          <p>Choose a previous JSON backup and restore the platform content.</p>
+        <article className="ef-admin-clean-card">
+          <h2>Import</h2>
+          <p>Choose a previous English Focus JSON backup and restore it locally.</p>
 
-          <label className="ef-backup-upload">
-            <BackupIcon type="upload" />
+          <label className="ef-admin-upload-main">
             Choose backup
-            <input type="file" accept="application/json" onChange={handleImport} />
+            <input type="file" accept="application/json" onChange={loadBackup} />
           </label>
 
-          <button className="ef-backup-secondary" onClick={restoreBackup}>
+          <button className="ef-admin-action-soft" onClick={restoreBackup}>
             Restore backup
           </button>
         </article>
 
-        <article className="ef-backup-card danger">
-          <span className="ef-backup-icon">
-            <BackupIcon type="reset" />
-          </span>
-          <h2>Reset demo</h2>
-          <p>Clear local data and restart from the default demo content.</p>
-
-          <button className="ef-backup-danger" onClick={resetDemo}>
-            <BackupIcon type="reset" />
+        <article className="ef-admin-clean-card danger">
+          <h2>Reset</h2>
+          <p>Clear all local demo data and reload default catalogue content.</p>
+          <button className="ef-admin-action-danger" onClick={resetDemo}>
             Reset demo
           </button>
         </article>
       </section>
 
-      {importPreview && (
-        <section className="ef-backup-preview">
+      {preview && (
+        <section className="ef-admin-backup-preview">
           <div>
-            <span>Backup loaded</span>
-            <strong>{importPreview.version}</strong>
+            <span>Backup version</span>
+            <strong>{preview.version}</strong>
           </div>
           <div>
             <span>Exported at</span>
-            <strong>{new Date(importPreview.exportedAt).toLocaleString()}</strong>
+            <strong>{new Date(preview.exportedAt).toLocaleString()}</strong>
           </div>
         </section>
       )}

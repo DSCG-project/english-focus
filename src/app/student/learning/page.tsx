@@ -1,164 +1,123 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { StudentShell } from "@/components/layout/StudentShell";
 import { useEnglishContent } from "@/lib/useEnglishContent";
 
-type TestResult = {
-  score: number;
-  total: number;
-  finishedAt: string;
-};
-
-function resultKey(courseId: string, lessonId: string) {
-  return `${courseId}__${lessonId}`;
-}
-
 export default function StudentLearningPage() {
   const { levels, courses, lessons } = useEnglishContent();
-  const [results, setResults] = useState<Record<string, TestResult>>({});
 
-  useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem("english-focus-test-results");
-      setResults(raw ? JSON.parse(raw) : {});
-    } catch {
-      setResults({});
-    }
-  }, []);
+  const [activeLevel, setActiveLevel] = useState("All");
+  const [query, setQuery] = useState("");
 
-  const groupedCourses = useMemo(() => {
+  const filteredCourses = useMemo(() => {
+    const cleanQuery = query.trim().toLowerCase();
+
+    return courses.filter((course) => {
+      const matchesLevel = activeLevel === "All" || course.level === activeLevel;
+      const matchesQuery =
+        !cleanQuery ||
+        course.title.toLowerCase().includes(cleanQuery) ||
+        course.tag.toLowerCase().includes(cleanQuery);
+
+      return matchesLevel && matchesQuery;
+    });
+  }, [courses, activeLevel, query]);
+
+  const grouped = useMemo(() => {
     return levels
-      .map((level) => {
-        const levelCourses = courses.filter((course) => course.level === level);
-
-        return {
-          level,
-          courses: levelCourses,
-        };
-      })
+      .map((level) => ({
+        level,
+        courses: filteredCourses.filter((course) => course.level === level),
+      }))
       .filter((group) => group.courses.length > 0);
-  }, [levels, courses]);
+  }, [levels, filteredCourses]);
 
-  const completedTests = lessons.filter((lesson) => {
-    return results[resultKey(lesson.courseId, lesson.id)];
-  });
+  function countLessons(courseId: string) {
+    return lessons.filter((lesson) => lesson.courseId === courseId).length;
+  }
 
-  const average =
-    completedTests.length > 0
-      ? Math.round(
-          completedTests.reduce((sum, lesson) => {
-            const result = results[resultKey(lesson.courseId, lesson.id)];
-            return sum + (result.score / result.total) * 100;
-          }, 0) / completedTests.length
-        )
-      : 0;
-
-  function getCourseStats(courseId: string) {
-    const courseLessons = lessons.filter((lesson) => lesson.courseId === courseId);
-
-    const testsCompleted = courseLessons.filter((lesson) => {
-      return results[resultKey(lesson.courseId, lesson.id)];
+  function countReady(courseId: string) {
+    return lessons.filter((lesson) => {
+      return (
+        lesson.courseId === courseId &&
+        (lesson.video || lesson.coursePdf || lesson.exercisesPdf || lesson.notesPdf || (lesson.quiz?.length || 0) > 0)
+      );
     }).length;
-
-    const resourcesReady = courseLessons.filter((lesson) => {
-      return lesson.video || lesson.coursePdf || lesson.exercisesPdf || lesson.notesPdf;
-    }).length;
-
-    const firstLesson = courseLessons[0];
-
-    return {
-      lessons: courseLessons.length,
-      testsCompleted,
-      resourcesReady,
-      firstLesson,
-    };
   }
 
   return (
     <StudentShell>
-      <section className="ef-courses-page-head">
+      <section className="ef-learning-clean-head">
         <div>
-          <span className="ef-course-eyebrow">Progress</span>
-          <h1>Learning</h1>
-          <p>Track your courses by level, continue lessons and retake QCM tests.</p>
+          <span className="ef-course-eyebrow">Learning path</span>
+          <h1>My learning</h1>
+          <p>Choose a level or a Business English subject and open the course lessons.</p>
+        </div>
+
+        <div className="ef-learning-clean-tools">
+          <select value={activeLevel} onChange={(event) => setActiveLevel(event.target.value)}>
+            <option value="All">All levels</option>
+            {levels.map((level) => (
+              <option key={level} value={level}>{level}</option>
+            ))}
+          </select>
+
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search..."
+          />
         </div>
       </section>
 
-      <div className="ef-course-metrics">
-        <div>
-          <span>Courses</span>
-          <strong>{courses.length}</strong>
-        </div>
-        <div>
-          <span>Lessons</span>
-          <strong>{lessons.length}</strong>
-        </div>
-        <div>
-          <span>Tests completed</span>
-          <strong>{completedTests.length}</strong>
-        </div>
-        <div>
-          <span>Average score</span>
-          <strong>{average}%</strong>
-        </div>
+      <div className="ef-learning-tabs-clean">
+        <button className={activeLevel === "All" ? "active" : ""} onClick={() => setActiveLevel("All")}>
+          All
+        </button>
+
+        {levels.map((level) => (
+          <button key={level} className={activeLevel === level ? "active" : ""} onClick={() => setActiveLevel(level)}>
+            {level.replace(" Upper Intermediate", "").replace(" Proficiency", "")}
+          </button>
+        ))}
       </div>
 
-      <div className="ef-learning-level-stack">
-        {groupedCourses.map((group) => (
-          <section className="ef-learning-level-panel" key={group.level}>
-            <div className="ef-section-head">
-              <h2 className="ef-section-title">{group.level}</h2>
-              <p className="ef-section-subtitle">
-                {group.courses.length} course{group.courses.length > 1 ? "s" : ""} available
-              </p>
+      <section className="ef-learning-clean-stack">
+        {grouped.map((group) => (
+          <article className="ef-learning-clean-group" key={group.level}>
+            <div className="ef-learning-clean-title">
+              <h2>{group.level}</h2>
+              <span>{group.courses.length} course{group.courses.length > 1 ? "s" : ""}</span>
             </div>
 
-            <div className="ef-learning-course-grid">
+            <div className="ef-learning-clean-list">
               {group.courses.map((course) => {
-                const stats = getCourseStats(course.id);
+                const total = countLessons(course.id);
+                const ready = countReady(course.id);
+                const firstLesson = lessons.find((lesson) => lesson.courseId === course.id);
 
                 return (
-                  <article className="ef-learning-course-card" key={course.id}>
-                    <div className="ef-learning-course-top">
+                  <article className="ef-learning-clean-course" key={course.id}>
+                    <div className="ef-learning-course-code">
+                      {course.level === "Business English" ? course.tag.slice(0, 2).toUpperCase() : course.level.split(" ")[0]}
+                    </div>
+
+                    <div className="ef-learning-course-main">
                       <span>{course.tag}</span>
-                      <b>{course.status}</b>
+                      <h3>{course.title}</h3>
+                      <p>{total} lessons · {ready} with content</p>
                     </div>
 
-                    <h3>{course.title}</h3>
-                    <p>{course.description}</p>
-
-                    <div className="ef-learning-course-stats">
-                      <div>
-                        <span>Lessons</span>
-                        <strong>{stats.lessons}</strong>
-                      </div>
-                      <div>
-                        <span>Resources</span>
-                        <strong>{stats.resourcesReady}</strong>
-                      </div>
-                      <div>
-                        <span>Tests</span>
-                        <strong>{stats.testsCompleted}</strong>
-                      </div>
-                    </div>
-
-                    <div className="ef-card-progress">
-                      <span style={{ width: `${Math.min(100, Math.max(0, course.progress))}%` }} />
-                    </div>
-
-                    <div className="ef-learning-course-actions">
+                    <div className="ef-learning-course-actions-clean">
                       <Link href={`/student/courses/${course.id}`} className="ef-mini-primary">
-                        Open course
+                        Open
                       </Link>
 
-                      {stats.firstLesson && (
-                        <Link
-                          href={`/student/courses/${course.id}/${stats.firstLesson.id}`}
-                          className="ef-mini-secondary"
-                        >
-                          Continue
+                      {firstLesson && (
+                        <Link href={`/student/courses/${course.id}/${firstLesson.id}`} className="ef-mini-secondary">
+                          Start
                         </Link>
                       )}
                     </div>
@@ -166,17 +125,15 @@ export default function StudentLearningPage() {
                 );
               })}
             </div>
-          </section>
+          </article>
         ))}
 
-        {groupedCourses.length === 0 && (
-          <section className="ef-dashboard-panel-final">
-            <div className="ef-empty-mini">
-              No courses have been added yet.
-            </div>
-          </section>
+        {grouped.length === 0 && (
+          <div className="ef-student-home-panel">
+            <div className="ef-empty-mini">No course found.</div>
+          </div>
         )}
-      </div>
+      </section>
     </StudentShell>
   );
 }

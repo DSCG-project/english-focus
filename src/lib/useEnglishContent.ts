@@ -13,6 +13,7 @@ import {
 const LEVELS_KEY = "english-focus-levels";
 const COURSES_KEY = "english-focus-courses";
 const LESSONS_KEY = "english-focus-lessons";
+const SOURCE_KEY = "english-focus-content-source";
 
 const LEGACY_FAKE_VIDEO_PATHS = new Set([
   "/uploads/videos/question-forms-1.mp4",
@@ -21,6 +22,23 @@ const LEGACY_FAKE_VIDEO_PATHS = new Set([
 const LEGACY_FAKE_PDF_PATHS = new Set([
   "/uploads/pdfs/question-forms-1.pdf",
 ]);
+
+type ContentSource = "loading" | "supabase" | "localStorage" | "fallback";
+
+type ContentApiResponse = {
+  ok: boolean;
+  source: ContentSource;
+  message: string;
+  levels: EnglishLevel[];
+  courses: EnglishCourse[];
+  lessons: EnglishLesson[];
+  counts?: {
+    levels: number;
+    courses: number;
+    lessons: number;
+    questions: number;
+  };
+};
 
 function lessonKey(lesson: EnglishLesson) {
   return `${lesson.courseId}__${lesson.id}`;
@@ -58,7 +76,7 @@ function mergeCourses(storedCourses: EnglishCourse[]) {
     map.set(course.id, {
       ...(base || course),
       ...course,
-      total: base?.total || course.total || 0,
+      total: course.total || base?.total || 0,
     });
   });
 
@@ -101,8 +119,18 @@ function readStorage<T>(key: string, fallback: T): T {
   }
 }
 
+function writeStorage(levels: EnglishLevel[], courses: EnglishCourse[], lessons: EnglishLesson[], source: ContentSource) {
+  if (typeof window === "undefined") return;
+
+  window.localStorage.setItem(LEVELS_KEY, JSON.stringify(levels));
+  window.localStorage.setItem(COURSES_KEY, JSON.stringify(courses));
+  window.localStorage.setItem(LESSONS_KEY, JSON.stringify(sanitizeLessons(lessons)));
+  window.localStorage.setItem(SOURCE_KEY, source);
+}
+
 export function useEnglishContent(): {
   ready: boolean;
+  contentSource: ContentSource;
   levels: EnglishLevel[];
   setLevels: Dispatch<SetStateAction<EnglishLevel[]>>;
   courses: EnglishCourse[];
@@ -111,13 +139,40 @@ export function useEnglishContent(): {
   setLessons: Dispatch<SetStateAction<EnglishLesson[]>>;
   publishedLessons: EnglishLesson[];
   resetContent: () => void;
+  reloadContent: () => Promise<void>;
 } {
   const [ready, setReady] = useState(false);
+  const [contentSource, setContentSource] = useState<ContentSource>("loading");
+
   const [levels, setLevels] = useState<EnglishLevel[]>(englishLevels);
   const [courses, setCourses] = useState<EnglishCourse[]>(defaultCourses);
   const [lessons, setLessons] = useState<EnglishLesson[]>(defaultLessons);
 
-  useEffect(() => {
+  async function reloadContent() {
+    try {
+      const response = await fetch("/api/content", {
+        cache: "no-store",
+      });
+
+      const data = (await response.json()) as ContentApiResponse;
+
+      if (
+        data.ok &&
+        data.levels?.length > 0 &&
+        data.courses?.length > 0 &&
+        data.lessons?.length > 0
+      ) {
+        setLevels(data.levels);
+        setCourses(data.courses);
+        setLessons(sanitizeLessons(data.lessons));
+        setContentSource(data.source);
+        writeStorage(data.levels, data.courses, data.lessons, data.source);
+        return;
+      }
+    } catch {
+      // Keep local content.
+    }
+
     const storedLevels = readStorage<EnglishLevel[]>(LEVELS_KEY, []);
     const storedCourses = readStorage<EnglishCourse[]>(COURSES_KEY, []);
     const storedLessons = readStorage<EnglishLesson[]>(LESSONS_KEY, []);
@@ -129,12 +184,12 @@ export function useEnglishContent(): {
     setLevels(nextLevels);
     setCourses(nextCourses);
     setLessons(nextLessons);
+    setContentSource("localStorage");
+    writeStorage(nextLevels, nextCourses, nextLessons, "localStorage");
+  }
 
-    window.localStorage.setItem(LEVELS_KEY, JSON.stringify(nextLevels));
-    window.localStorage.setItem(COURSES_KEY, JSON.stringify(nextCourses));
-    window.localStorage.setItem(LESSONS_KEY, JSON.stringify(nextLessons));
-
-    setReady(true);
+  useEffect(() => {
+    reloadContent().finally(() => setReady(true));
   }, []);
 
   useEffect(() => {
@@ -161,17 +216,20 @@ export function useEnglishContent(): {
     setLevels(englishLevels);
     setCourses(defaultCourses);
     setLessons(defaultLessons);
+    setContentSource("fallback");
 
     if (typeof window !== "undefined") {
       window.localStorage.setItem(LEVELS_KEY, JSON.stringify(englishLevels));
       window.localStorage.setItem(COURSES_KEY, JSON.stringify(defaultCourses));
       window.localStorage.setItem(LESSONS_KEY, JSON.stringify(defaultLessons));
+      window.localStorage.setItem(SOURCE_KEY, "fallback");
       window.localStorage.removeItem("english-focus-test-results");
     }
   }
 
   return {
     ready,
+    contentSource,
     levels,
     setLevels,
     courses,
@@ -180,5 +238,6 @@ export function useEnglishContent(): {
     setLessons,
     publishedLessons,
     resetContent,
+    reloadContent,
   };
 }

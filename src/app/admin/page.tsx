@@ -1,79 +1,103 @@
+"use client";
+
 import Link from "next/link";
 import { AdminShell } from "@/components/layout/AdminShell";
+import { useEnglishContent } from "@/lib/useEnglishContent";
+import { useEnglishStudents } from "@/lib/useEnglishStudents";
 
-export default function AdminPage() {
+export default function AdminDashboardPage() {
+  const { levels, courses, lessons } = useEnglishContent();
+  const { students } = useEnglishStudents();
+
+  const resourcesReady = lessons.filter(
+    (lesson) => lesson.video || lesson.coursePdf || lesson.exercisesPdf || lesson.notesPdf
+  ).length;
+
+  const testsReady = lessons.filter((lesson) => (lesson.quiz?.length || 0) > 0).length;
+  const businessCourses = courses.filter((course) => course.level === "Business English").length;
+
+  const cards = [
+    {
+      title: "Content studio",
+      text: "Manage levels, courses, lessons, resources and QCM tests.",
+      href: "/admin/content",
+      action: "Open studio",
+    },
+    {
+      title: "Catalogue",
+      text: "Review the complete course structure and empty lesson framework.",
+      href: "/admin/catalogue",
+      action: "View catalogue",
+    },
+    {
+      title: "Students",
+      text: "Manage student access, plan, level and course permissions.",
+      href: "/admin/students",
+      action: "Manage students",
+    },
+    {
+      title: "Backup",
+      text: "Export, import or reset local MVP content before database migration.",
+      href: "/admin/backup",
+      action: "Open backup",
+    },
+  ];
+
   return (
     <AdminShell>
-      <section className="ef-admin-hero">
+      <section className="ef-admin-clean-hero">
         <div>
-          <h1>Content administration</h1>
-          <p>
-            Manage the full English Focus learning structure: levels, courses,
-            lessons, video files, PDF notes and quizzes from one clean workspace.
-          </p>
+          <span>English Focus Admin</span>
+          <h1>Dashboard</h1>
+          <p>Control the catalogue, content, students and local MVP backup from one place.</p>
         </div>
 
-        <div className="ef-admin-hero-actions">
-          <Link href="/admin/content" className="ef-admin-white-btn">
-            Open content builder
-          </Link>
-          <Link href="/student" className="ef-admin-ghost-btn">
-            Preview student area
-          </Link>
-        </div>
+        <Link href="/student" className="ef-admin-clean-preview">
+          Student preview
+        </Link>
       </section>
 
-      <div className="ef-admin-stats">
-        <div className="ef-admin-stat">
+      <div className="ef-admin-clean-kpis">
+        <div>
           <span>Levels</span>
-          <strong>6</strong>
+          <strong>{levels.length}</strong>
         </div>
-        <div className="ef-admin-stat">
+        <div>
           <span>Courses</span>
-          <strong>12</strong>
+          <strong>{courses.length}</strong>
         </div>
-        <div className="ef-admin-stat">
+        <div>
           <span>Lessons</span>
-          <strong>86</strong>
+          <strong>{lessons.length}</strong>
         </div>
-        <div className="ef-admin-stat">
-          <span>Quizzes</span>
-          <strong>46</strong>
+        <div>
+          <span>Business courses</span>
+          <strong>{businessCourses}</strong>
         </div>
-      </div>
-
-      <div className="ef-admin-flow">
-        <div className="ef-admin-step active">
-          <strong>1. Levels</strong>
-          <span>A1, A2, B1, B2, C1, Business English</span>
+        <div>
+          <span>Resources ready</span>
+          <strong>{resourcesReady}</strong>
         </div>
-        <div className="ef-admin-step active">
-          <strong>2. Courses</strong>
-          <span>Organized by level and skill</span>
+        <div>
+          <span>Tests ready</span>
+          <strong>{testsReady}</strong>
         </div>
-        <div className="ef-admin-step active">
-          <strong>3. Lessons</strong>
-          <span>Lesson title, objective and description</span>
-        </div>
-        <div className="ef-admin-step">
-          <strong>4. Video / PDF</strong>
-          <span>Upload learning resources</span>
-        </div>
-        <div className="ef-admin-step">
-          <strong>5. Quiz</strong>
-          <span>Questions, answers and explanations</span>
+        <div>
+          <span>Students</span>
+          <strong>{students.length}</strong>
         </div>
       </div>
 
-      <section className="ef-admin-panel">
-        <h2>Next action</h2>
-        <p>
-          Start from the content builder and create the first real lesson flow.
-          This will later be connected to database storage and secure video hosting.
-        </p>
-        <Link href="/admin/content" className="ef-admin-submit" style={{ display: "inline-flex", alignItems: "center", padding: "0 18px" }}>
-          Continue
-        </Link>
+      <section className="ef-admin-clean-grid">
+        {cards.map((card) => (
+          <article className="ef-admin-clean-card" key={card.href}>
+            <h2>{card.title}</h2>
+            <p>{card.text}</p>
+            <Link href={card.href} className="ef-mini-primary">
+              {card.action}
+            </Link>
+          </article>
+        ))}
       </section>
     </AdminShell>
   );

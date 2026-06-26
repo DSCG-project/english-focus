@@ -659,6 +659,38 @@ export default function AdminContentPage() {
     setNotice("10 demo questions generated.");
   }
 
+
+  async function syncToSupabase() {
+    setNotice("Syncing content to Supabase...");
+
+    try {
+      const response = await fetch("/api/admin/database/sync", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          levels,
+          courses,
+          lessons,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.ok) {
+        throw new Error(data.message || "Sync failed.");
+      }
+
+      const counts = data.counts;
+      setNotice(
+        `Synced to Supabase: ${counts.levels} levels, ${counts.courses} courses, ${counts.lessons} lessons, ${counts.questions} questions.`
+      );
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Sync failed.");
+    }
+  }
+
   const quiz = activeLesson?.quiz || [];
 
   return (
@@ -681,6 +713,10 @@ export default function AdminContentPage() {
               Preview test
             </Link>
           )}
+
+          <button className="ef-admin-white-btn" onClick={syncToSupabase}>
+            Sync to Supabase
+          </button>
 
           <button className="ef-admin-ghost-btn" onClick={resetContent}>
             Reset content
