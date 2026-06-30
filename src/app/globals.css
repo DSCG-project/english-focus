@@ -8268,3 +8268,23 @@ button {
     padding: 0 13px;
   }
 }
+
+/* =========================
+   PRODUCTION STUDENT LOGIN
+========================= */
+
+.ef-student-login-page {
+  min-height: 100vh;
+  background: #f6f7f5;
+  display: grid;
+  place-items: center;
+  padding: 28px;
+}
+
+.ef-student-login-card {
+  width: min(100%, 470px);
+  background: #ffffff;
+  border: 1px solid var(--ef-border);
+  border-radius: 24px;
+  padding: 34px;
+}
